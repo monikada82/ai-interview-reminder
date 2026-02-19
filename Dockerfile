@@ -1,14 +1,29 @@
-# Use Java 21 base image
-FROM eclipse-temurin:21-jdk
+# -------- Stage 1: Build --------
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy jar file
-COPY target/*.jar app.jar
+# Copy pom.xml first
+COPY pom.xml .
 
-# Expose port
+# Download dependencies
+RUN mvn dependency:go-offline
+
+# Copy source code
+COPY src ./src
+
+# Build jar (skip tests)
+RUN mvn clean package -DskipTests
+
+
+# -------- Stage 2: Run --------
+FROM eclipse-temurin:21-jdk
+
+WORKDIR /app
+
+# Copy jar from builder stage
+COPY --from=builder /app/target/*.jar app.jar
+
 EXPOSE 8080
 
-# Run application
 ENTRYPOINT ["java", "-jar", "app.jar"]
